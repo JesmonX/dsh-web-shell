@@ -1,7 +1,7 @@
 {
   "name": "dsh-web-shell",
   "description": "Collapsible web terminal for DeepSeek Harness: a right-docked xterm.js shell (bash/zsh) over a WebSocket PTY bridge.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publishConfig": {
     "access": "public"
   },
