@@ -1,5 +1,9 @@
 # dsh-web-shell
 
+[![npm version](https://img.shields.io/npm/v/dsh-web-shell)](https://www.npmjs.com/package/dsh-web-shell)
+[![GitHub](https://img.shields.io/badge/GitHub-JesmonX%2Fdsh--web--shell-blue?logo=github)](https://github.com/JesmonX/dsh-web-shell)
+[![license: MIT](https://img.shields.io/github/license/JesmonX/dsh-web-shell)](./LICENSE)
+
 DeepSeek Harness 的右侧停靠 Web Shell 插件。浏览器端使用 xterm.js，通过 `/api/shell` WebSocket 与宿主侧 PTY 桥接，支持 bash / zsh 切换。
 
 ## 功能
@@ -13,20 +17,9 @@ DeepSeek Harness 的右侧停靠 Web Shell 插件。浏览器端使用 xterm.js�
 
 ## 安装
 
-### 从 GitHub
+要求 DeepSeek Harness `>= 0.1.0-rc.5`（npm 上 `@deepseek-ai/dsh` 的 latest 为 `0.1.0-rc.6`）。
 
-```sh
-dsh plugin --profile web add github:JesmonX/dsh-web-shell
-```
-
-如果插件管理器不支持 GitHub 简写，可先 clone 再本地安装：
-
-```sh
-git clone https://github.com/JesmonX/dsh-web-shell.git
-dsh plugin --profile web add ./dsh-web-shell
-```
-
-### 从 npm
+### 从 npm（推荐）
 
 ```sh
 dsh plugin --profile web add dsh-web-shell
@@ -39,6 +32,21 @@ dsh web
 ```
 
 点击窗口右侧的 **❯_** 按钮打开 shell。
+
+### 从 GitHub
+
+```sh
+dsh plugin --profile web add github:JesmonX/dsh-web-shell
+```
+
+仓库已提交构建好的 `lib/`，git 安装直接可用，不需要构建授权（allowBuilds）。
+
+如果插件管理器不支持 GitHub 简写，可先 clone 再本地安装：
+
+```sh
+git clone https://github.com/JesmonX/dsh-web-shell.git
+dsh plugin --profile web add ./dsh-web-shell
+```
 
 ## 使用
 
@@ -79,23 +87,23 @@ dsh web
 ## 兼容性说明
 
 - 插件的 `shell.overlay` 槽位由 `dsh-client-ui-layout` 声明。建议使用包含该槽位的 DeepSeek Harness 版本（`>=0.1.0-rc.5`）。
-- 完整“主对话栏让位”效果需要 `dsh-client-ui-layout` 提供 `ctx.layout.setShellWidth` / `closeShell` 等右侧停靠 API。
+- 完整"主对话栏让位"效果需要 `dsh-client-ui-layout` 提供 `ctx.layout.setShellWidth` / `closeShell` 等右侧停靠 API。
 - 如果宿主 UI 版本较旧（有 `shell.overlay` 但没有右侧停靠 API），插件会自动降级为纯 overlay 模式：shell 仍可打开、折叠、关闭和拖拽，但主对话栏不会让位。
 
 ## 从源码构建
 
-本仓库已附带构建好的 `lib/`，可直接作为插件安装。如需从源码构建，推荐放入 `deepseek-harness` 的 `packages/extensions/web-shell` 目录，使用 monorepo 的构建链：
-
-```sh
-pnpm --filter dsh-web-shell run bundle
-```
-
-仅做类型检查：
+本仓库自带完整构建链，无需依赖 deepseek-harness monorepo：
 
 ```sh
 npm install
-npm run typecheck
+npm run build
 ```
+
+- `npm run build` 依次执行：`tsc -b tsconfig.host.json`（宿主侧）→ `tsc -b tsconfig.client.json`（浏览器侧）→ `tsdown --env.DSH_BUILD_FACE client`（打包 `lib/index.js` 与 `lib/client.js`）。
+- 构建管线复刻自 monorepo 的 `packages/client/tsdown.client.ts` 预设（模块表 externals、CSS Module 内联、xterm.css 内联），产物与 monorepo 构建逐字节兼容（仅 CSS 类名哈希与注释路径不同）。
+- 构建工具已锁定精确版本（tsdown 0.22.2 / lightningcss 1.32.0 / typescript 6.0.3），保证产物可复现。
+- **`lib/` 已提交进 git 并随 npm 发布**：修改 `src/` 后请重新 `npm run build` 并把 `lib/` 一起提交，确保 git / npm 安装到的产物与源码一致。
+- 仅类型检查：`npm run typecheck`；开发热更新：`npm run watch`。
 
 ## 安全
 
