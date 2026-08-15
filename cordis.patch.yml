@@ -1,0 +1,13 @@
+# dsh-web-shell bundle patch: mounts the host PTY bridge. The same package
+# declares `dsh.client`, so the client-modules scanner serves its browser half
+# from this single row.
+- insert:
+    - id: web-shell
+      name: 'dsh-web-shell'
+      inject: [webServer, subprocess, webRuntime]
+      config:
+        shells: [bash, zsh]
+        defaultShell: bash
+        rows: 40
+        cols: 120
+        graceMs: 5000

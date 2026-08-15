@@ -1,0 +1,149 @@
+/* Right-docked shell panel. `shell.overlay` is a click-through layer; every
+   interactive surface opts back into pointer events. */
+
+.toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-text-primary);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, .08);
+}
+
+.toggle:hover {
+  background: var(--dsw-alias-button-floating-hover, var(--dsw-alias-bg-base));
+}
+
+.toggleIcon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(520px, 55vw);
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--dsw-alias-bg-base);
+  border-left: 1px solid var(--dsw-alias-border-l2);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, .08);
+}
+
+/* Collapsed keeps the section (and the PTY WebSocket) mounted while hidden. */
+.panelCollapsed {
+  display: none;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dsw-alias-text-primary);
+}
+
+.shellPicker {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.shellButton,
+.shellActive {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-text-secondary);
+  padding: 3px 9px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.shellActive {
+  background: var(--dsw-alias-button-floating-fill, var(--dsw-alias-bg-base));
+  color: var(--dsw-alias-text-primary);
+  border-color: var(--dsw-alias-border-l3);
+}
+
+.collapse,
+.close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: none;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--dsw-alias-text-secondary);
+  cursor: pointer;
+}
+
+.collapse:hover,
+.close:hover {
+  background: var(--dsw-alias-button-floating-hover, var(--dsw-alias-bg-base));
+  color: var(--dsw-alias-text-primary);
+}
+
+.terminal {
+  flex: 1;
+  min-height: 0;
+  padding: 8px;
+  background: #101722;
+  overflow: hidden;
+}
+
+.terminal :global(.xterm) {
+  height: 100%;
+}
+
+.resizeHandle {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  margin-left: -4px;
+  cursor: col-resize;
+  z-index: 3;
+  touch-action: none;
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 4px;
+  height: 40px;
+  border-radius: 4px;
+  background: transparent;
+  transition: background var(--ds-transition-duration-slow) var(--ds-ease-in-out);
+}
+
+.resizeHandle:hover::after,
+.resizeHandle[data-dragging]::after {
+  background: var(--dsw-alias-border-l3);
+}
