@@ -1,11 +1,12 @@
 /**
- * Collapsible right-docked shell panel with a live xterm.js terminal.
+ * Collapsible right-docked shell panel with a live xterm.js terminal and
+ * browser-style multiple shell tabs.
  *
  * Visibility has two controls:
- * - collapse hides the panel but keeps the WebSocket/PTY session mounted, so
- *   reopening restores the same shell process;
- * - close disposes the terminal, closes the WebSocket, and the host kills the
- *   PTY. Reopening after close starts a fresh shell.
+ * - collapse hides the panel but keeps every tab's WebSocket/PTY session
+ *   mounted, so reopening restores the same shell processes;
+ * - close disposes every tab, closes each WebSocket, and the host kills the
+ *   PTYs. Reopening after close starts a fresh shell.
  *
  * The panel width is owned by ui-layout's right-dock reservation
  * (`ctx.layout.setShellWidth`): the frame reserves the same width through its

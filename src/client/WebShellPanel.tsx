@@ -1,11 +1,12 @@
 /**
- * Collapsible right-docked shell panel with a live xterm.js terminal.
+ * Collapsible right-docked shell panel with a live xterm.js terminal and
+ * browser-style multiple shell tabs.
  *
  * Visibility has two controls:
- * - collapse hides the panel but keeps the WebSocket/PTY session mounted, so
- *   reopening restores the same shell process;
- * - close disposes the terminal, closes the WebSocket, and the host kills the
- *   PTY. Reopening after close starts a fresh shell.
+ * - collapse hides the panel but keeps every tab's WebSocket/PTY session
+ *   mounted, so reopening restores the same shell processes;
+ * - close disposes every tab, closes each WebSocket, and the host kills the
+ *   PTYs. Reopening after close starts a fresh shell.
  *
  * The panel width is owned by ui-layout's right-dock reservation
  * (`ctx.layout.setShellWidth`): the frame reserves the same width through its
@@ -13,7 +14,7 @@
  * instead of being covered.
  */
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent } from 'react'
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
@@ -32,6 +33,9 @@ const SHELL_DEFAULT_WIDTH = 520
 const CENTER_RESERVED_WHILE_DRAGGING = 640
 /** Matches the host default; hello may override it with the configured stack. */
 const DEFAULT_SHELL_FONT_FAMILY = '"Maple Mono NF CN", "Sarasa Mono SC", "Cascadia Code", "JetBrains Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei UI", monospace'
+const DEFAULT_FONT_SIZE = 13
+const MIN_FONT_SIZE = 8
+const MAX_FONT_SIZE = 24
 
 /** Dark theme with the contrast and palette of a conventional Linux terminal. */
 const TERMINAL_THEME = {
@@ -128,9 +132,27 @@ interface WebShellPanelProps extends WebShellPanelInjected {
   shellWidth?: number
 }
 
+interface ShellTab {
+  id: number
+  shell: string
+}
+
 interface ContextMenuState {
   x: number
   y: number
+}
+
+interface ShellSessionProps {
+  tab: ShellTab
+  active: boolean
+  fontSize: number
+  shells: string[]
+  onHello(shells: string[], defaultShell: string): void
+  onChangeShell(tabId: number, shell: string): void
+  onNewTab(): void
+  onZoomIn(): void
+  onZoomOut(): void
+  onZoomReset(): void
 }
 
 function clampShellWidth(px: number): number {
@@ -139,47 +161,44 @@ function clampShellWidth(px: number): number {
   return Math.min(max, Math.max(SHELL_MIN_WIDTH, Math.round(px)))
 }
 
-export function WebShellPanel({
-  shellWidth = 0,
-  closeShell,
-  setShellWidth,
-}: WebShellPanelProps) {
-  const [expanded, setExpanded] = useState(false)
-  const [everOpened, setEverOpened] = useState(false)
-  const [shells, setShells] = useState<string[]>(['bash', 'zsh'])
-  const [defaultShell, setDefaultShell] = useState('bash')
-  const [selectedShell, setSelectedShell] = useState<string | null>(null)
-  const [dragging, setDragging] = useState(false)
-  const [session, setSession] = useState(0)
+function ShellSession({
+  tab,
+  active,
+  fontSize,
+  shells,
+  onHello,
+  onChangeShell,
+  onNewTab,
+  onZoomIn,
+  onZoomOut,
+  onZoomReset,
+}: ShellSessionProps) {
   const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  const [sessionNonce, setSessionNonce] = useState(0)
   const containerRef = useRef<HTMLDivElement | null>(null)
   const termRef = useRef<Terminal | null>(null)
-  const defaultShellRef = useRef(defaultShell)
-  const selectedShellRef = useRef(selectedShell)
-  const lastWidthRef = useRef(SHELL_DEFAULT_WIDTH)
-  const dragState = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null)
+  const fitRef = useRef<FitAddon | null>(null)
   const sendResizeRef = useRef<() => void>(() => {})
-  defaultShellRef.current = defaultShell
-  selectedShellRef.current = selectedShell
-
-  const activeShell = selectedShell ?? defaultShell
-  const panelWidth = shellWidth > 0 ? shellWidth : lastWidthRef.current
-
-  // Remember the last open width so collapse (which writes 0) can restore it.
-  useEffect(() => {
-    if (shellWidth > 0) lastWidthRef.current = shellWidth
-  }, [shellWidth])
+  const fontSizeRef = useRef(fontSize)
+  const shellRef = useRef(tab.shell)
+  const activeRef = useRef(active)
+  fontSizeRef.current = fontSize
+  shellRef.current = tab.shell
+  activeRef.current = active
 
   useEffect(() => {
-    if (!everOpened) return
+    if (!active) setMenu(null)
+  }, [active])
+
+  useEffect(() => {
     const container = containerRef.current
-    /* v8 ignore next -- the panel is mounted with its container before this effect runs */
+    /* v8 ignore next -- the tab is mounted with its container before this effect runs */
     if (container === null) return
 
     const term = new Terminal({
       convertEol: false,
       fontFamily: DEFAULT_SHELL_FONT_FAMILY,
-      fontSize: 13,
+      fontSize: fontSizeRef.current,
       fontWeight: '400',
       fontWeightBold: '700',
       lineHeight: 1.15,
@@ -191,10 +210,11 @@ export function WebShellPanel({
     })
     termRef.current = term
     const fit = new FitAddon()
+    fitRef.current = fit
     term.loadAddon(fit)
     term.open(container)
     registerWebLinks(term)
-    fit.fit()
+    if (activeRef.current) fit.fit()
 
     const copyTerminalSelection = async (): Promise<void> => {
       await copySelection(term)
@@ -215,6 +235,26 @@ export function WebShellPanel({
         void pasteIntoTerminal()
         return false
       }
+      if (ctrl && event.shiftKey && event.code === 'KeyT') {
+        event.preventDefault()
+        onNewTab()
+        return false
+      }
+      if (ctrl && event.code === 'Equal' || ctrl && event.code === 'NumpadAdd') {
+        event.preventDefault()
+        onZoomIn()
+        return false
+      }
+      if (ctrl && event.code === 'Minus' || ctrl && event.code === 'NumpadSubtract') {
+        event.preventDefault()
+        onZoomOut()
+        return false
+      }
+      if (ctrl && event.code === 'Digit0') {
+        event.preventDefault()
+        onZoomReset()
+        return false
+      }
       return true
     })
 
@@ -228,7 +268,7 @@ export function WebShellPanel({
       opened = true
       const message: WebShellClientMessage = {
         type: 'open',
-        shell: selectedShellRef.current ?? defaultShellRef.current,
+        shell: shellRef.current,
         rows: term.rows,
         cols: term.cols,
       }
@@ -237,9 +277,9 @@ export function WebShellPanel({
 
     const sendResize = (): void => {
       if (!opened || disposed) return
-      // The container reports 0×0 while the panel is display:none (collapsed);
-      // skipping keeps the last PTY size until the panel is visible again and
-      // the ResizeObserver fires with real dimensions.
+      // The container reports 0×0 while the tab is hidden (or the panel is
+      // collapsed); skipping keeps the last PTY size until the tab is visible
+      // again and the ResizeObserver fires with real dimensions.
       if (container.clientWidth === 0 || container.clientHeight === 0) return
       fit.fit()
       const message: WebShellClientMessage = { type: 'resize', cols: term.cols, rows: term.rows }
@@ -264,9 +304,7 @@ export function WebShellPanel({
         return
       }
       if (msg.type === 'hello') {
-        defaultShellRef.current = msg.defaultShell
-        setShells(msg.shells)
-        setDefaultShell(msg.defaultShell)
+        onHello(msg.shells, msg.defaultShell)
         if (msg.fontFamily) term.options.fontFamily = msg.fontFamily
         term.write('\x1b[90m[web-shell] host ready.\x1b[0m\r\n')
         fit.fit()
@@ -299,21 +337,179 @@ export function WebShellPanel({
       try { ws.close() } catch { /* already closed */ }
       term.dispose()
       if (termRef.current === term) termRef.current = null
+      if (fitRef.current === fit) fitRef.current = null
     }
-  }, [everOpened, selectedShell, session])
+  }, [tab.id, tab.shell, sessionNonce])
 
-  // Re-fit after collapse: the container reports 0×0 while display:none, and
-  // xterm needs a fresh fit once the section is visible again.
+  // Apply font-size zoom and re-fit the active tab after xterm re-measures.
   useEffect(() => {
-    if (!expanded) return
-    const id = requestAnimationFrame(() => { sendResizeRef.current() })
-    return () => { cancelAnimationFrame(id) }
-  }, [expanded])
+    const term = termRef.current
+    if (term === null) return
+    term.options.fontSize = fontSize
+    if (!active) return
+    const raf = requestAnimationFrame(() => {
+      fitRef.current?.fit()
+      sendResizeRef.current?.()
+    })
+    return () => { cancelAnimationFrame(raf) }
+  }, [active, fontSize])
 
-  const openPanel = (): void => {
+  // Re-fit after a tab becomes visible again.
+  useEffect(() => {
+    if (!active) return
+    const raf = requestAnimationFrame(() => {
+      fitRef.current?.fit()
+      sendResizeRef.current?.()
+    })
+    return () => { cancelAnimationFrame(raf) }
+  }, [active])
+
+  const openContextMenu = (e: ReactMouseEvent<HTMLDivElement>): void => {
+    e.preventDefault()
+    setMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  const closeContextMenu = (): void => {
+    setMenu(null)
+  }
+
+  const menuCopy = (): void => {
+    const term = termRef.current
+    if (term !== null) void copySelection(term)
+    closeContextMenu()
+  }
+
+  const menuPaste = (): void => {
+    const term = termRef.current
+    if (term !== null) void pasteClipboard(term)
+    closeContextMenu()
+  }
+
+  const menuClear = (): void => {
+    termRef.current?.clear()
+    closeContextMenu()
+  }
+
+  const menuRestart = (): void => {
+    setSessionNonce((value) => value + 1)
+    closeContextMenu()
+  }
+
+  const menuShell = (shell: string): void => {
+    onChangeShell(tab.id, shell)
+    closeContextMenu()
+  }
+
+  const contextLeft = menu === null ? 0 : Math.min(menu.x, window.innerWidth - 232)
+  const contextTop = menu === null ? 0 : Math.min(menu.y, window.innerHeight - 272)
+
+  return (
+    <div className={active ? css.session : css.sessionHidden}>
+      <div
+        ref={containerRef}
+        className={css.terminal}
+        onContextMenu={openContextMenu}
+      />
+      {menu !== null && (
+        <div
+          className={css.contextMenuBackdrop}
+          onMouseDown={closeContextMenu}
+          onContextMenu={(event) => {
+            event.preventDefault()
+            closeContextMenu()
+          }}
+        >
+          <div
+            className={css.contextMenu}
+            style={{ left: `${contextLeft}px`, top: `${contextTop}px` }}
+            onMouseDown={(event) => { event.stopPropagation() }}
+          >
+            <div className={css.contextMenuLabel}>Shell</div>
+            <button type="button" className={css.contextMenuItem} onClick={menuCopy}>复制</button>
+            <button type="button" className={css.contextMenuItem} onClick={menuPaste}>粘贴</button>
+            <button type="button" className={css.contextMenuItem} onClick={menuClear}>清屏</button>
+            <div className={css.contextMenuDivider} />
+            {shells.map((shell) => (
+              <button
+                key={shell}
+                type="button"
+                className={shell === tab.shell ? css.contextMenuItemActive : css.contextMenuItem}
+                onClick={() => { menuShell(shell) }}
+              >
+                使用 {shell}
+              </button>
+            ))}
+            <div className={css.contextMenuDivider} />
+            <button type="button" className={css.contextMenuItem} onClick={menuRestart}>重启 shell</button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function WebShellPanel({
+  shellWidth = 0,
+  closeShell,
+  setShellWidth,
+}: WebShellPanelProps) {
+  const [expanded, setExpanded] = useState(false)
+  const [everOpened, setEverOpened] = useState(false)
+  const [shells, setShells] = useState<string[]>(['bash', 'zsh'])
+  const [defaultShell, setDefaultShell] = useState('bash')
+  const [dragging, setDragging] = useState(false)
+  const [fontSize, setFontSize] = useState(DEFAULT_FONT_SIZE)
+  const [tabs, setTabs] = useState<ShellTab[]>([])
+  const [activeTabId, setActiveTabId] = useState<number | null>(null)
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const lastWidthRef = useRef(SHELL_DEFAULT_WIDTH)
+  const nextTabIdRef = useRef(1)
+  const dragState = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null)
+
+  const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null
+  const activeShell = activeTab?.shell ?? defaultShell
+  const panelWidth = shellWidth > 0 ? shellWidth : lastWidthRef.current
+
+  // Remember the last open width so collapse (which writes 0) can restore it.
+  useEffect(() => {
+    if (shellWidth > 0) lastWidthRef.current = shellWidth
+  }, [shellWidth])
+
+  const handleHello = useCallback((nextShells: string[], nextDefaultShell: string) => {
+    setShells(nextShells)
+    setDefaultShell(nextDefaultShell)
+    // A tab that requested a shell this deployment does not offer (for
+    // example a tab created before hello arrived) is migrated to the host's
+    // advertised default.
+    setTabs((prev) => prev.map((tab) => (
+      nextShells.includes(tab.shell) ? tab : { ...tab, shell: nextDefaultShell }
+    )))
+  }, [])
+
+  const ensurePanelOpen = (): void => {
     setEverOpened(true)
     setExpanded(true)
     setShellWidth(clampShellWidth(lastWidthRef.current))
+  }
+
+  const addTab = (): void => {
+    const requested = activeTab?.shell ?? defaultShell
+    const shell = shells.includes(requested) ? requested : (shells[0] ?? defaultShell)
+    const id = nextTabIdRef.current
+    nextTabIdRef.current += 1
+    setTabs((prev) => prev.length === 0
+      ? [{ id, shell }]
+      : [...prev, { id, shell }])
+    setActiveTabId(id)
+    ensurePanelOpen()
+  }
+
+  const openPanel = (): void => {
+    if (tabs.length === 0) {
+      addTab()
+      return
+    }
+    ensurePanelOpen()
   }
 
   const collapsePanel = (): void => {
@@ -324,8 +520,42 @@ export function WebShellPanel({
   const closePanel = (): void => {
     setExpanded(false)
     setEverOpened(false)
-    setSelectedShell(null)
+    setTabs([])
+    setActiveTabId(null)
     closeShell()
+  }
+
+  const closeTab = (id: number): void => {
+    const nextTabs = tabs.filter((tab) => tab.id !== id)
+    if (nextTabs.length === 0) {
+      closePanel()
+      return
+    }
+    setTabs(nextTabs)
+    if (activeTabId === id) {
+      const closedIndex = tabs.findIndex((tab) => tab.id === id)
+      const neighbor = nextTabs[Math.max(0, closedIndex - 1)] ?? nextTabs[0]!
+      setActiveTabId(neighbor.id)
+    }
+  }
+
+  const changeShell = (shell: string): void => {
+    if (activeTabId === null) return
+    setTabs((prev) => prev.map((tab) => (
+      tab.id === activeTabId ? { ...tab, shell } : tab
+    )))
+  }
+
+  const zoomIn = (): void => {
+    setFontSize((value) => Math.min(MAX_FONT_SIZE, value + 1))
+  }
+
+  const zoomOut = (): void => {
+    setFontSize((value) => Math.max(MIN_FONT_SIZE, value - 1))
+  }
+
+  const zoomReset = (): void => {
+    setFontSize(DEFAULT_FONT_SIZE)
   }
 
   const onResizePointerDown = (e: ReactPointerEvent<HTMLDivElement>): void => {
@@ -359,45 +589,6 @@ export function WebShellPanel({
     setDragging(false)
   }
 
-  const openContextMenu = (e: ReactMouseEvent<HTMLDivElement>): void => {
-    e.preventDefault()
-    setMenu({ x: e.clientX, y: e.clientY })
-  }
-
-  const closeContextMenu = (): void => {
-    setMenu(null)
-  }
-
-  const menuCopy = (): void => {
-    const term = termRef.current
-    if (term !== null) void copySelection(term)
-    closeContextMenu()
-  }
-
-  const menuPaste = (): void => {
-    const term = termRef.current
-    if (term !== null) void pasteClipboard(term)
-    closeContextMenu()
-  }
-
-  const menuClear = (): void => {
-    termRef.current?.clear()
-    closeContextMenu()
-  }
-
-  const menuRestart = (): void => {
-    setSession((value) => value + 1)
-    closeContextMenu()
-  }
-
-  const menuShell = (shell: string): void => {
-    setSelectedShell(shell)
-    closeContextMenu()
-  }
-
-  const contextLeft = menu === null ? 0 : Math.min(menu.x, window.innerWidth - 232)
-  const contextTop = menu === null ? 0 : Math.min(menu.y, window.innerHeight - 272)
-
   if (!everOpened) {
     return (
       <button
@@ -419,7 +610,7 @@ export function WebShellPanel({
           type="button"
           className={css.toggle}
           aria-label="Expand web shell"
-          title="Expand shell (session kept alive)"
+          title="Expand shell (sessions kept alive)"
           onClick={openPanel}
         >
           <span className={css.toggleIcon} aria-hidden>❯_</span>
@@ -439,17 +630,22 @@ export function WebShellPanel({
                 type="button"
                 className={shell === activeShell ? css.shellActive : css.shellButton}
                 aria-pressed={shell === activeShell}
-                onClick={() => { setSelectedShell(shell) }}
+                onClick={() => { changeShell(shell) }}
               >
                 {shell}
               </button>
             ))}
           </div>
+          <div className={css.zoom} role="group" aria-label="Terminal font size">
+            <button type="button" className={css.zoomButton} title="Decrease font size (Ctrl+-)" onClick={zoomOut}>−</button>
+            <span className={css.zoomValue}>{fontSize}px</span>
+            <button type="button" className={css.zoomButton} title="Increase font size (Ctrl++)" onClick={zoomIn}>+</button>
+          </div>
           <button
             type="button"
             className={css.collapse}
             aria-label="Collapse shell"
-            title="Collapse (keep session alive)"
+            title="Collapse (sessions kept alive)"
             onClick={collapsePanel}
           >
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
@@ -460,7 +656,7 @@ export function WebShellPanel({
             type="button"
             className={css.close}
             aria-label="Close shell"
-            title="Close shell (terminate session)"
+            title="Close shell (terminate all sessions)"
             onClick={closePanel}
           >
             <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden>
@@ -468,11 +664,63 @@ export function WebShellPanel({
             </svg>
           </button>
         </header>
-        <div
-          ref={containerRef}
-          className={css.terminal}
-          onContextMenu={openContextMenu}
-        />
+        <div className={css.tabBar} role="tablist" aria-label="Shell sessions">
+          {tabs.map((tab, index) => (
+            <div
+              key={tab.id}
+              role="tab"
+              aria-selected={tab.id === activeTabId}
+              className={tab.id === activeTabId ? css.tabActive : css.tab}
+              onClick={() => { setActiveTabId(tab.id) }}
+            >
+              <span className={css.tabTitle}>{tab.shell} {index + 1}</span>
+              <button
+                type="button"
+                className={css.tabClose}
+                aria-label={`Close ${tab.shell} ${index + 1}`}
+                title="Close tab (terminate session)"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  closeTab(tab.id)
+                }}
+              >
+                <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden>
+                  <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            className={css.tabNew}
+            aria-label="New shell tab"
+            title="New shell tab (Ctrl+Shift+T)"
+            onClick={addTab}
+          >
+            +
+          </button>
+        </div>
+        <div ref={containerRef} className={css.sessions}>
+          {tabs.map((tab) => (
+            <ShellSession
+              key={tab.id}
+              tab={tab}
+              active={tab.id === activeTabId}
+              fontSize={fontSize}
+              shells={shells}
+              onHello={handleHello}
+              onChangeShell={(id, shell) => {
+                setTabs((prev) => prev.map((item) => (
+                  item.id === id ? { ...item, shell } : item
+                )))
+              }}
+              onNewTab={addTab}
+              onZoomIn={zoomIn}
+              onZoomOut={zoomOut}
+              onZoomReset={zoomReset}
+            />
+          ))}
+        </div>
         <div
           className={css.resizeHandle}
           data-dragging={dragging || undefined}
@@ -481,40 +729,6 @@ export function WebShellPanel({
           onPointerUp={onResizePointerUp}
         />
       </section>
-      {menu !== null && (
-        <div
-          className={css.contextMenuBackdrop}
-          onMouseDown={closeContextMenu}
-          onContextMenu={(event) => {
-            event.preventDefault()
-            closeContextMenu()
-          }}
-        >
-          <div
-            className={css.contextMenu}
-            style={{ left: `${contextLeft}px`, top: `${contextTop}px` }}
-            onMouseDown={(event) => { event.stopPropagation() }}
-          >
-            <div className={css.contextMenuLabel}>Shell</div>
-            <button type="button" className={css.contextMenuItem} onClick={menuCopy}>复制</button>
-            <button type="button" className={css.contextMenuItem} onClick={menuPaste}>粘贴</button>
-            <button type="button" className={css.contextMenuItem} onClick={menuClear}>清屏</button>
-            <div className={css.contextMenuDivider} />
-            {shells.map((shell) => (
-              <button
-                key={shell}
-                type="button"
-                className={shell === activeShell ? css.contextMenuItemActive : css.contextMenuItem}
-                onClick={() => { menuShell(shell) }}
-              >
-                使用 {shell}
-              </button>
-            ))}
-            <div className={css.contextMenuDivider} />
-            <button type="button" className={css.contextMenuItem} onClick={menuRestart}>重启 shell</button>
-          </div>
-        </div>
-      )}
     </>
   )
 }
