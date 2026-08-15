@@ -24,6 +24,8 @@ export interface Config {
     cols?: number;
     /** TERM-to-KILL cleanup grace for the complete terminal session. */
     graceMs?: number;
+    /** CSS font-family stack for the browser xterm.js terminal. */
+    fontFamily?: string;
 }
 interface WebRuntimeLike {
     trustedHosts: string[];

@@ -30,6 +30,8 @@ const SHELL_MAX_WIDTH = 960
 const SHELL_DEFAULT_WIDTH = 520
 /** Keep at least the ui-layout center floor available while dragging. */
 const CENTER_RESERVED_WHILE_DRAGGING = 640
+/** Matches the host default; hello may override it with the configured stack. */
+const DEFAULT_SHELL_FONT_FAMILY = '"Maple Mono NF CN", "Sarasa Mono SC", "Cascadia Code", "JetBrains Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei UI", monospace'
 
 /** Injected by the plugin apply face from `ctx.layout`. */
 export interface WebShellPanelInjected {
@@ -84,6 +86,7 @@ export function WebShellPanel({
 
     const term = new Terminal({
       convertEol: false,
+      fontFamily: DEFAULT_SHELL_FONT_FAMILY,
       fontSize: 13,
       cursorBlink: true,
       allowProposedApi: true,
@@ -142,7 +145,9 @@ export function WebShellPanel({
         defaultShellRef.current = msg.defaultShell
         setShells(msg.shells)
         setDefaultShell(msg.defaultShell)
+        if (msg.fontFamily) term.options.fontFamily = msg.fontFamily
         term.write('\x1b[90m[web-shell] host ready.\x1b[0m\r\n')
+        fit.fit()
         sendOpen()
       } else if (msg.type === 'output') {
         term.write(msg.data)

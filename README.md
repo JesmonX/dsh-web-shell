@@ -64,6 +64,7 @@ dsh web
     rows: 40
     cols: 120
     graceMs: 5000
+    fontFamily: '"Maple Mono NF CN", "Sarasa Mono SC", "Cascadia Code", "JetBrains Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei UI", monospace'
 ```
 
 可在后续 patch 层覆盖：
@@ -73,6 +74,7 @@ dsh web
 - `cwd`：新终端起始目录，默认 `process.cwd()`。
 - `rows` / `cols`：初始终端行列数。
 - `graceMs`：PTY 清理宽限时间。
+- `fontFamily`：浏览器端 xterm.js 的 CSS 字体栈（使用浏览器所在系统的字体）。默认值优先使用本机已安装的 `Maple Mono NF CN`，并回退到常见等宽中文字体。
 
 ## 兼容性说明
 

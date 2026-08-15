@@ -39,6 +39,8 @@ export interface Config {
   cols?: number
   /** TERM-to-KILL cleanup grace for the complete terminal session. */
   graceMs?: number
+  /** CSS font-family stack for the browser xterm.js terminal. */
+  fontFamily?: string
 }
 
 interface WebRuntimeLike {
@@ -52,6 +54,8 @@ declare module '@deepseek-ai/cordis' {
 }
 
 const DEFAULT_SHELLS = ['bash', 'zsh']
+/** Default browser font stack; prefers locally-installed monospace fonts with CJK fallbacks. */
+const DEFAULT_SHELL_FONT_FAMILY = '"Maple Mono NF CN", "Sarasa Mono SC", "Cascadia Code", "JetBrains Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei UI", monospace'
 
 /** Validate and normalize the configured shell roster. */
 function normalizeShells(config?: Config): { shells: string[]; defaultShell: string } {
@@ -73,6 +77,7 @@ export function apply(ctx: Context, config?: Config): void {
   const rows = config?.rows ?? 40
   const cols = config?.cols ?? 120
   const graceMs = config?.graceMs ?? 5000
+  const fontFamily = config?.fontFamily ?? DEFAULT_SHELL_FONT_FAMILY
 
   const wss = new WebSocketServer({ noServer: true })
   const sessions = new Map<WebSocket, SubprocessTerminalHandle>()
@@ -96,7 +101,7 @@ export function apply(ctx: Context, config?: Config): void {
       ctx.logger.warn(err instanceof Error ? err : new Error(String(err)))
     })
 
-    ws.send(JSON.stringify({ type: 'hello', shells, defaultShell } satisfies import('./protocol.ts').WebShellHello))
+    ws.send(JSON.stringify({ type: 'hello', shells, defaultShell, fontFamily } satisfies import('./protocol.ts').WebShellHello))
 
     ws.on('message', (raw) => {
       let msg: WebShellClientMessage

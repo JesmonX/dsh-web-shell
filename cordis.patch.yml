@@ -11,3 +11,4 @@
         rows: 40
         cols: 120
         graceMs: 5000
+        fontFamily: '"Maple Mono NF CN", "Sarasa Mono SC", "Cascadia Code", "JetBrains Mono", "Noto Sans Mono CJK SC", "Microsoft YaHei UI", monospace'

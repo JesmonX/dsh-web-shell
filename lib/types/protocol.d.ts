@@ -5,6 +5,8 @@ export interface WebShellHello {
     shells: string[];
     /** The shell selected when the client does not ask for one. */
     defaultShell: string;
+    /** CSS font-family stack for xterm.js; resolved against the browser's system fonts. */
+    fontFamily: string;
 }
 export interface WebShellOpen {
     type: 'open';
