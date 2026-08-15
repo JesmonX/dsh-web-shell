@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { clientBundle } from './tsdown.client.ts'
 
-const base = clientBundle('dsh-web-shell', ['lib/types/index.js'])
+const base = clientBundle('dsh-web-shell', ['lib/types/index.js', 'lib/types/invariant.js'])
 
 const XTERM_CSS_PATH = fileURLToPath(import.meta.resolve('@xterm/xterm/css/xterm.css'))
 const XTERM_CSS_PREFIX = '\0dsh-web-shell-xterm-css:'

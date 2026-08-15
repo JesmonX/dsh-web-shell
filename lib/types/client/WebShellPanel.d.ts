@@ -14,15 +14,18 @@
  * instead of being covered.
  */
 import '@xterm/xterm/css/xterm.css';
+import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client';
+import type { WebShellSettings } from '../settings.ts';
 /** Injected by the plugin apply face from `ctx.layout`. */
 export interface WebShellPanelInjected {
     closeShell(): void;
     setShellWidth(px: number): void;
+    settings: SettingsScope<WebShellSettings>;
 }
 interface WebShellPanelProps extends WebShellPanelInjected {
     /** Right-dock width reserved by ui-layout (0 while collapsed). */
     shellWidth?: number;
 }
-export declare function WebShellPanel({ shellWidth, closeShell, setShellWidth, }: WebShellPanelProps): import("react").JSX.Element;
+export declare function WebShellPanel({ shellWidth, closeShell, setShellWidth, settings, }: WebShellPanelProps): import("react").JSX.Element;
 export {};
 //# sourceMappingURL=WebShellPanel.d.ts.map

@@ -26,5 +26,5 @@
     "noUnusedParameters": true,
     "types": ["node"]
   },
-  "include": ["src/index.ts", "src/protocol.ts", "src/trust.ts"]
+  "include": ["src/index.ts", "src/protocol.ts", "src/settings.ts", "src/trust.ts", "src/invariant.ts"]
 }

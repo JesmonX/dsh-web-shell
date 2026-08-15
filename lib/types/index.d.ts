@@ -6,6 +6,7 @@
  * The browser half lives in `src/client/index.ts`.
  */
 import type { Context } from '@deepseek-ai/cordis';
+export { WEB_SHELL_DOCK_WIDTH_FIELD, WEB_SHELL_FOLDED_FIELD, WEB_SHELL_SETTINGS_NAMESPACE, type WebShellSettings, } from './settings.ts';
 /** Stable Cordis plugin name. */
 export declare const name = "web-shell";
 /** Services required before the PTY bridge can mount. */
@@ -41,5 +42,4 @@ declare module '@deepseek-ai/cordis' {
  * @param config - validated {@link Config}.
  */
 export declare function apply(ctx: Context, config?: Config): void;
-export {};
 //# sourceMappingURL=index.d.ts.map

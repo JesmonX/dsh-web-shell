@@ -17,6 +17,10 @@
       "types": "./lib/types/index.d.ts",
       "default": "./lib/index.js"
     },
+    "./invariant": {
+      "types": "./lib/types/invariant.d.ts",
+      "default": "./lib/invariant.js"
+    },
     "./client": {
       "types": "./lib/types/client/index.d.ts",
       "default": "./lib/client.js"
@@ -33,7 +37,8 @@
       "inject": [
         "@deepseek-ai/dsh-client-runtime",
         "@deepseek-ai/dsh-client-ui-layout",
-        "@deepseek-ai/dsh-client-ui-slots"
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-ui-settings"
       ],
       "platform": "web"
     }
@@ -46,31 +51,39 @@
   },
   "license": "MIT",
   "dependencies": {
+    "@deepseek-ai/dsh-settings": ">=0.1.0-rc.5 <0.2.0",
+    "@deepseek-ai/schemastery": "^3.18.1",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "ws": "^8.21.0"
   },
   "files": [
+    "lib/*.js",
     "lib/index.js",
+    "lib/invariant.js",
     "lib/client.js",
     "lib/types/**/*.d.ts",
     "cordis.patch.yml"
   ],
   "peerDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1 <5",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-ui-layout": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.5 <0.2.0",
+    "@deepseek-ai/dsh-invariants": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-subprocess": ">=0.1.0-rc.5 <0.2.0",
     "react": "^18.2.0"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": ">=4.0.1 <5",
+    "@deepseek-ai/dsh-client-ui-settings": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-runtime": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-ui-layout": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-client-ui-slots": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-host-webserver": ">=0.1.0-rc.5 <0.2.0",
+    "@deepseek-ai/dsh-invariants": ">=0.1.0-rc.5 <0.2.0",
     "@deepseek-ai/dsh-subprocess": ">=0.1.0-rc.5 <0.2.0",
     "@types/node": "^24.0.0",
     "@types/react": "~18.3.1",

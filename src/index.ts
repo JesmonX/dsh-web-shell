@@ -7,6 +7,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 import type {} from '@deepseek-ai/dsh-host-webserver'
 import type { SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
 
@@ -18,6 +19,14 @@ import type {} from '@deepseek-ai/dsh-subprocess'
 import { WebSocketServer, WebSocket } from 'ws'
 import { isTrustedApiRequest } from './trust.ts'
 import type { WebShellClientMessage } from './protocol.ts'
+import { WEB_SHELL_SETTINGS_NAMESPACE, WebShellSettingsSchema } from './settings.ts'
+
+export {
+  WEB_SHELL_DOCK_WIDTH_FIELD,
+  WEB_SHELL_FOLDED_FIELD,
+  WEB_SHELL_SETTINGS_NAMESPACE,
+  type WebShellSettings,
+} from './settings.ts'
 
 /** Stable Cordis plugin name. */
 export const name = 'web-shell'
@@ -72,6 +81,13 @@ function normalizeShells(config?: Config): { shells: string[]; defaultShell: str
  * @param config - validated {@link Config}.
  */
 export function apply(ctx: Context, config?: Config): void {
+  ctx.inject(['settings'], (settingsCtx) => {
+    settingsCtx.settings.register(
+      settingsNamespace(WEB_SHELL_SETTINGS_NAMESPACE),
+      WebShellSettingsSchema,
+    )
+  })
+
   const { shells, defaultShell } = normalizeShells(config)
   const cwd = config?.cwd ?? process.cwd()
   const rows = config?.rows ?? 40

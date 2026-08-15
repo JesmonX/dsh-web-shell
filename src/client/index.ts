@@ -9,11 +9,15 @@ import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: merges ui-layout's SlotMap entry for `shell.overlay` and its
 // Context merge for `ctx.layout`.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+// Type-only: provides the ctx.settingsScope context merge without pulling the
+// settings UI into the browser bundle.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
 import { WebShellPanel } from './WebShellPanel.tsx'
 import type { WebShellPanelInjected } from './WebShellPanel.tsx'
+import type { WebShellSettings } from '../settings.ts'
 
 /** Required services (cordis fiber inject). */
-export const inject = ['slots', 'layout']
+export const inject = ['slots', 'layout', 'settingsScope']
 
 /** Right-dock API added to ctx.layout by newer ui-layout releases. */
 interface WebShellLayout {
@@ -32,6 +36,7 @@ export function apply(ctx: ClientContext): void {
   // falls back to a pure overlay; newer builds reserve space and prevent the
   // center conversation column from being covered.
   const layout = ctx.layout as unknown as WebShellLayout
+  const settings = ctx.settingsScope.bind<WebShellSettings>({ namespace: 'web-shell' })
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
     id: 'web-shell',
@@ -39,6 +44,7 @@ export function apply(ctx: ClientContext): void {
     inject: (): WebShellPanelInjected => ({
       closeShell: () => { layout.closeShell?.() },
       setShellWidth: (px: number) => { layout.setShellWidth?.(px) },
+      settings,
     }),
   }, WebShellPanel))
 }

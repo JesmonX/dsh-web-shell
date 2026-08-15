@@ -10,6 +10,7 @@ DeepSeek Harness 的右侧停靠 Web Shell 插件。浏览器端使用 xterm.js�
 
 - **右侧停靠**：打开后主对话栏自动让位，不再遮挡会话内容（需要较新的 `dsh-client-ui-layout`）。
 - **可调宽度**：拖动 shell 左边缘即可调整宽度（360–960px）。
+- **按 profile 记忆布局**：当前 profile 的 settings domain 会保存 dock 宽度和折叠状态，刷新后恢复。
 - **折叠 / 关闭分离**：
   - **折叠**：隐藏面板但保持 WebSocket / PTY 会话存活，再次展开恢复同一个 shell。
   - **关闭**：断开连接并终止 PTY，再次打开会创建新 shell。
@@ -84,6 +85,10 @@ dsh plugin --profile web add ./dsh-web-shell
 - `graceMs`：PTY 清理宽限时间。
 - `fontFamily`：浏览器端 xterm.js 的 CSS 字体栈（使用浏览器所在系统的字体）。默认值优先使用本机已安装的 `Maple Mono NF CN`，并回退到常见等宽中文字体。
 
+### 布局设置
+
+插件注册 `web-shell` settings namespace，字段为 `dockWidth` 和 `folded`。宽度只在拖拽结束时写入，范围仍由 UI 合同限制在 360–960px；折叠和关闭都会记录为 folded。设置属于 dsh 当前 profile 的 settings domain，不使用浏览器 localStorage，因此同一 profile 的重新加载不会丢失布局偏好。
+
 ## 兼容性说明
 
 - 插件的 `shell.overlay` 槽位由 `dsh-client-ui-layout` 声明。建议使用包含该槽位的 DeepSeek Harness 版本（`>=0.1.0-rc.5`）。
@@ -108,6 +113,8 @@ npm run build
 ## 安全
 
 Shell 以与 dsh 进程相同的操作系统权限运行。升级路由使用与 `/api` 网关相同的 loopback / trusted-host / origin 防护；非 loopback 部署必须通过 `trustedHosts` 显式声明。
+
+插件同时发布 `dsh-web-shell/invariant` companion。它导出 `checkWebShellTrust()`，并在 dsh 的 invariant/doctor 诊断组合中对解析后的 `webServer` / `webRuntime` 配置执行同一套 `/api/shell` 围栏预检：Host 必须存在，loopback 必须可用，非 loopback Host 必须在 `trustedHosts` 中，Origin 必须同源，`Sec-Fetch-Site: cross-site` 必须拒绝；绑定 `0.0.0.0` 时还必须配置至少一个合法 trusted host。这样安装者可在启动前发现安全配置缺口，而不是等 WebSocket 升级后才发现。
 
 ## License
 

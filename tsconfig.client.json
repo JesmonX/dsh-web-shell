@@ -29,6 +29,7 @@
   },
   "include": [
     "src/protocol.ts",
+    "src/settings.ts",
     "src/client/index.ts",
     "src/client/WebShellPanel.tsx",
     "src/css-modules.d.ts"

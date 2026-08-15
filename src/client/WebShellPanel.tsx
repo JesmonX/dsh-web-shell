@@ -19,10 +19,12 @@ import type { MouseEvent as ReactMouseEvent, PointerEvent as ReactPointerEvent }
 import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
+import type { SettingsScope } from '@deepseek-ai/dsh-client-runtime/client'
 import type {
   WebShellClientMessage,
   WebShellServerMessage,
 } from '../protocol.ts'
+import type { WebShellSettings } from '../settings.ts'
 import css from './WebShellPanel.module.css'
 
 /** Keep in sync with SHELL_* in packages/client/ui-layout/src/client/columns.ts. */
@@ -36,6 +38,8 @@ const DEFAULT_SHELL_FONT_FAMILY = '"Maple Mono NF CN", "Sarasa Mono SC", "Cascad
 const DEFAULT_FONT_SIZE = 13
 const MIN_FONT_SIZE = 8
 const MAX_FONT_SIZE = 24
+const WEB_SHELL_DOCK_WIDTH_FIELD = 'dockWidth'
+const WEB_SHELL_FOLDED_FIELD = 'folded'
 
 /** Dark theme with the contrast and palette of a conventional Linux terminal. */
 const TERMINAL_THEME = {
@@ -125,6 +129,7 @@ async function pasteClipboard(term: Terminal): Promise<void> {
 export interface WebShellPanelInjected {
   closeShell(): void
   setShellWidth(px: number): void
+  settings: SettingsScope<WebShellSettings>
 }
 
 interface WebShellPanelProps extends WebShellPanelInjected {
@@ -460,6 +465,7 @@ export function WebShellPanel({
   shellWidth = 0,
   closeShell,
   setShellWidth,
+  settings,
 }: WebShellPanelProps) {
   const [expanded, setExpanded] = useState(false)
   const [everOpened, setEverOpened] = useState(false)
@@ -472,7 +478,11 @@ export function WebShellPanel({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const lastWidthRef = useRef(SHELL_DEFAULT_WIDTH)
   const nextTabIdRef = useRef(1)
+  const tabsRef = useRef<ShellTab[]>([])
+  const settingsRestoredRef = useRef(false)
   const dragState = useRef<{ pointerId: number; startX: number; startWidth: number } | null>(null)
+
+  tabsRef.current = tabs
 
   const activeTab = tabs.find((tab) => tab.id === activeTabId) ?? null
   const activeShell = activeTab?.shell ?? defaultShell
@@ -482,6 +492,47 @@ export function WebShellPanel({
   useEffect(() => {
     if (shellWidth > 0) lastWidthRef.current = shellWidth
   }, [shellWidth])
+
+  // Restore browser-owned preferences from the active profile. A saved open
+  // state recreates one fresh tab after a reload; PTY sessions themselves are
+  // intentionally not durable and are owned by the WebSocket lifecycle.
+  useEffect(() => {
+    const restore = (): void => {
+      const snapshot = settings.getSnapshot()
+      if (snapshot.status === 'loading' || settingsRestoredRef.current) return
+      settingsRestoredRef.current = true
+
+      const saved = snapshot.value
+      if (saved?.dockWidth !== undefined) {
+        lastWidthRef.current = clampShellWidth(saved.dockWidth)
+      }
+      if (saved?.folded === true) {
+        setEverOpened(true)
+        setExpanded(false)
+        return
+      }
+      if (saved?.folded !== false) return
+
+      const requested = defaultShell
+      const shell = shells.includes(requested) ? requested : (shells[0] ?? requested)
+      if (tabsRef.current.length === 0) {
+        const id = nextTabIdRef.current
+        nextTabIdRef.current += 1
+        setTabs([{ id, shell }])
+        setActiveTabId(id)
+      }
+      setEverOpened(true)
+      setExpanded(true)
+      setShellWidth(clampShellWidth(lastWidthRef.current))
+    }
+
+    restore()
+    return settings.subscribe(restore)
+  }, [defaultShell, settings, setShellWidth, shells])
+
+  const persist = (field: string, value: unknown): void => {
+    void settings.set(field, value).catch(() => {})
+  }
 
   const handleHello = useCallback((nextShells: string[], nextDefaultShell: string) => {
     setShells(nextShells)
@@ -497,6 +548,7 @@ export function WebShellPanel({
   const ensurePanelOpen = (): void => {
     setEverOpened(true)
     setExpanded(true)
+    persist(WEB_SHELL_FOLDED_FIELD, false)
     setShellWidth(clampShellWidth(lastWidthRef.current))
   }
 
@@ -522,6 +574,7 @@ export function WebShellPanel({
 
   const collapsePanel = (): void => {
     setExpanded(false)
+    persist(WEB_SHELL_FOLDED_FIELD, true)
     closeShell()
   }
 
@@ -530,6 +583,7 @@ export function WebShellPanel({
     setEverOpened(false)
     setTabs([])
     setActiveTabId(null)
+    persist(WEB_SHELL_FOLDED_FIELD, true)
     closeShell()
   }
 
@@ -595,6 +649,7 @@ export function WebShellPanel({
       e.currentTarget.releasePointerCapture(e.pointerId)
     }
     setDragging(false)
+    persist(WEB_SHELL_DOCK_WIDTH_FIELD, lastWidthRef.current)
   }
 
   if (!everOpened) {
