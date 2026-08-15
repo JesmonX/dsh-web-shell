@@ -182,9 +182,17 @@ function ShellSession({
   const fontSizeRef = useRef(fontSize)
   const shellRef = useRef(tab.shell)
   const activeRef = useRef(active)
+  const onNewTabRef = useRef(onNewTab)
+  const onZoomInRef = useRef(onZoomIn)
+  const onZoomOutRef = useRef(onZoomOut)
+  const onZoomResetRef = useRef(onZoomReset)
   fontSizeRef.current = fontSize
   shellRef.current = tab.shell
   activeRef.current = active
+  onNewTabRef.current = onNewTab
+  onZoomInRef.current = onZoomIn
+  onZoomOutRef.current = onZoomOut
+  onZoomResetRef.current = onZoomReset
 
   useEffect(() => {
     if (!active) setMenu(null)
@@ -237,22 +245,22 @@ function ShellSession({
       }
       if (ctrl && event.shiftKey && event.code === 'KeyT') {
         event.preventDefault()
-        onNewTab()
+        onNewTabRef.current()
         return false
       }
       if (ctrl && event.code === 'Equal' || ctrl && event.code === 'NumpadAdd') {
         event.preventDefault()
-        onZoomIn()
+        onZoomInRef.current()
         return false
       }
       if (ctrl && event.code === 'Minus' || ctrl && event.code === 'NumpadSubtract') {
         event.preventDefault()
-        onZoomOut()
+        onZoomOutRef.current()
         return false
       }
       if (ctrl && event.code === 'Digit0') {
         event.preventDefault()
-        onZoomReset()
+        onZoomResetRef.current()
         return false
       }
       return true
