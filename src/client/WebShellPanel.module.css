@@ -109,13 +109,31 @@
 .terminal {
   flex: 1;
   min-height: 0;
-  padding: 8px;
-  background: #101722;
+  padding: 8px 8px 8px 10px;
+  background: #1e1e1e;
   overflow: hidden;
 }
 
 .terminal :global(.xterm) {
   height: 100%;
+}
+
+.terminal :global(.xterm .xterm-viewport) {
+  scrollbar-width: thin;
+  scrollbar-color: #444 transparent;
+}
+
+.terminal :global(.xterm .xterm-viewport::-webkit-scrollbar) {
+  width: 8px;
+}
+
+.terminal :global(.xterm .xterm-viewport::-webkit-scrollbar-thumb) {
+  background: #444;
+  border-radius: 4px;
+}
+
+.terminal :global(.xterm .xterm-viewport::-webkit-scrollbar-track) {
+  background: transparent;
 }
 
 .resizeHandle {
@@ -146,4 +164,63 @@
 .resizeHandle:hover::after,
 .resizeHandle[data-dragging]::after {
   background: var(--dsw-alias-border-l3);
+}
+
+.contextMenuBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  pointer-events: auto;
+  background: transparent;
+}
+
+.contextMenu {
+  position: fixed;
+  min-width: 200px;
+  padding: 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .18);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.contextMenuLabel {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--dsw-alias-text-secondary);
+}
+
+.contextMenuItem,
+.contextMenuItemActive {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-text-primary);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.contextMenuItem:hover {
+  background: var(--dsw-alias-button-floating-hover, var(--dsw-alias-bg-base));
+}
+
+.contextMenuItemActive {
+  background: var(--dsw-alias-button-floating-fill, var(--dsw-alias-bg-base));
+  font-weight: 600;
+}
+
+.contextMenuDivider {
+  height: 1px;
+  margin: 3px 8px;
+  background: var(--dsw-alias-border-l2);
 }
